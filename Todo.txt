@@ -1,0 +1,32 @@
+(ASCII)
+Step parents
+-Adding step-parent's children update's child's parent2 (Create method in Tree)
+Open Spouse
+-(Method not yet tested) addParent: for Nodes whose parents are Ancestor 
+Ancestor/Parent1 Lockout
+Find does not traverse to spouse. Problem?
+-Revamp to tranverse through all Ancestors
+ -Revamp: Adding Spouse should create a spouse's Ancestor on the spot
+-saveFile traverse Spouse's parents (create tree.getAncestors())
+parent2 handling in add/remove methods -> update edit buttons
+
+
+Update Log:
+Remove child doesn't remove spouse's child problem
+Node binding: Other parent (Default for parent2, step parents have to change manually)
+-data.txt: updated parent2 accordingly
+2nd+ Spouses don't have children by default
+Button on Spouse: Jump to Spouse's Side (opens spouse's Ancestor's Node)
+-Created global variable "currentTree" and updated reload/openSpouseTree for back button bug
+addChild() can add existing nodes
+-Adding child that already exists removes old parent's child
+[Ancestor] revamped to .includes("Ancestor]") in conditionals
+-Changed [Ancestor] to [Main Ancestor] in data file
+Revamp and create addSpouse/addChild methods
+-Remove Node.toggleIsSpouse and associated usage
+-Handle updated loadFile
+Removed print methods (outdated anyway)
+Changed tree.root to roots and update tree.find() to loop through roots also
+-Roots contain [Main Ancestor] along with [Spouse's Ancestor]
+-Added tree.addRoot()
+-Added tree.main, a boolean to toggle between main and spouse roots in Edit.openSpouseTree()

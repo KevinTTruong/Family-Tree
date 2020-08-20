@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html>
+<script src="https://unpkg.com/react@16.8.6/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@16.8.6/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/babel-standalone@6.26.0/babel.js"></script>
+<script type="text/babel">	//Save: type="text/babel"
+	//Todo:
+	//	-Add info/variables
+	//		-Add divorced-spouse's children as node
+	//	-(After presentation) Styles
+
+
+//	Node class//
+    function Node(name,parent){
+    	this.name=name;	//Should it be split(first,nick,middle,last)?
+    	this.parent=parent;
+    	this.parent2="";	//Add Step-Parents
+    	this.children=[];
+    	this.birthyear="Unknown";
+    	this.deathyear="Unknown";
+    	this.spouse=[];	//Add Spouses
+		this.isSpouse=false;
+    	this.profilePic="place pictures here/default-profile.png";
+    	this.pictures=[];
+    }
+
+	/**
+	 * Uses Selecting Sort to order children by brithyear (should probably update this)
+	 */ 
+	Node.prototype.orderChildren=function(){
+		for(let i=0;i<this.children.length;i++){
+			let older=i;
+			for(let j=i;j<this.children.length;i++){
+				if(this.children[j].birthyear>this.children[i].deathyear){
+					older=j;
+				}
+			}
+			let temp=this.children[i];
+			this.children[i]=this.children[older];
+			this.children[older]=temp;
+		}	
+	}
+
+	/**
+	 * Generates the view of a Node on the main page.
+	 * Node will also print it's children, creating a recursion, 
+	 * therefore you only need to generate [...Ancestor].
+	 */ 
+	Node.prototype.GenerateComponent=function(){
+		//Generate kids
+		this.orderChildren;
+		let Childs=this.children.map(child =>
+				child.GenerateComponent()
+		);
+		//Generate spouses
+		let spouses=[];
+		for(let i=0;i<this.spouse.length;i++){
+			spouses.push(
+				<div onClick={this.edit(this.spouse[i])}>
+					<u>{this.spouse[i].name}</u><br/>
+					<img src={this.spouse[i].profilePic} width="80" height="105"/><br/>
+					Lived: {this.spouse[i].birthyear}-{this.spouse[i].deathyear}
+				</div>
+			);
+		}
+		//HTML begins here
+    	return (
+			<section className="node">
+				<div className="spouse">
+					<div onClick={this.edit(this)}>
+						<u>{this.name}</u> <br/>
+						<img src={this.profilePic} width="90" height="115"/><br/>
+						Lived: {this.birthyear}-{this.deathyear}<br/>
+					</div>
+					{(this.spouse!==[])&&!this.name.includes("Ancestor]") ? spouses	: ""}
+				</div>
+				<div id="childs">	
+					{Childs}
+				</div>
+				
+			</section>
+		);
+	}
+	
+	/**
+	 * Opens the editing page for an individual (class below).
+	 */ 
+	Node.prototype.edit=function(edit){
+		return function(){
+			ReactDOM.render(<Edit node={edit}/>,document.getElementById("tree"));
+		}
+	}
+//  Edit Page  //
+	class Edit extends React.Component{
+		constructor(props){
+			super(props);
+			this.state={
+				name: false,
+				profilePic: false,
+				birthyear: false,
+				deathyear: false,
+				parent2: false,
+				spouse: false,
+				children: false,
+				addchildren: false,
+				addspouse: false
+			};
+			this.infoText={
+				name: "",
+				profilePic: "",
+				birthyear: "Born: ",
+				deathyear: "Died: ",
+				parent2: "Other Parent: ",
+				spouse: "Spouse(s): "
+			}
+			this.edit=this.edit.bind(this);
+			this.toggleState=this.toggleState.bind(this);
+			this.editArray=this.editArray.bind(this);
+			this.reload=this.reload.bind(this);
+			this.openSpouseTree=this.openSpouseTree.bind(this);
+		}
+
+		/**
+		 * Displays an individual attribute of a Node. Clicking on the attribute 
+		 * enables a text-input to update the attribute. Special conditions are 
+		 * made for profile picture.
+		 */ 
+		edit(info){
+			let save=this;
+			if(this.state[info]==false){
+				let text="None";
+				if(info==="profilePic"){
+					text=(<img src={this.props.node.profilePic} width="90" height="115"/>);
+				}else if(this.props.node[info]!==""){
+					text=this.props.node[info];
+				}
+				return (
+					<div onClick={this.toggleState(info)}>
+						{this.infoText[info]}{text}
+					</div>
+				);
+			}
+			let place="";
+			if(info==="profilePic"){
+				if(this.props.node.profilePic==="place pictures here/default-profile.png"){
+					place="ex. Kevin.png";
+				}else{
+					place="Current: "+this.props.node.profilePic;
+				}
+			}
+			return(
+				<form id="form">
+					<input type="text" name="input" placeholder={place}/>
+					<input type="button" value="Edit" onClick={function(){
+						if((info==="birthyear"||info==="deathyear")&&document.getElementById("form").input.value===""){
+							tree.find(save.props.node.name)[info]="Unknown";
+						}else if(info==="profilePic"){
+							tree.find(save.props.node.name)[info]="place pictures here/"+document.getElementById("form").input.value;
+						}else{
+							tree.find(save.props.node.name)[info]=document.getElementById("form").input.value;
+						}
+						save.setState({[info]: false});
+					}}/>
+					<input type="button" value="Cancel" onClick={function(){
+							save.setState({[info]: false});
+						}}/>
+				</form>
+			);	
+		}
+
+		/**
+		 * Displays an individual attribute of a Node that is an array (children/spouses).
+		 * Lists out each child/spouse. Each unit contains an add/remove button along 
+		 * with a "Finish" button.
+		 */
+		editArray(info){
+			let save=this;
+			if(this.state[info]===true){
+				let list=[];
+				//Generates List and Remove Button
+				for(let i=0;i<this.props.node[info].length;i++){
+					let name=this.props.node[info][i].name;
+					list.push("\n"+name);
+					if(info==="children"){
+						if(this.props.node.isSpouse){
+							//Remove child from parent2
+							list.push(
+								<input type="button" value="Remove" onClick={function(){
+									save.props.node.children.splice(name,1);
+									ReactDOM.render(<Edit node={save.props.node}/>,document.getElementById("tree"));
+								}}/>
+							);
+						}else{
+							//Remove child from ancestor parent
+							list.push(
+								<input type="button" value="Remove" onClick={function(){
+									tree.remove(name);
+									ReactDOM.render(<Edit node={save.props.node}/>,document.getElementById("tree"));
+								}}/>
+							);
+						}
+					}else if(info==="spouse"){
+						//Remove spouse
+						list.push(
+							<input type="button" value="Remove" onClick={function(){
+								save.props.node.spouse[i].spouse.splice(save.props.node.name,1);
+								save.props.node.spouse.splice(i,1);
+								ReactDOM.render(<Edit node={save.props.node}/>,document.getElementById("tree"));
+							}}/>
+						);
+					}
+				}
+
+				//Generate Add Input
+				let add="";
+				//Add button with Input
+				if(this.state["add"+info]===true){
+					add=(
+						<form id="add">
+							<input type="text" name="input"/>
+							<input type="button" value="Add" onClick={function(){
+								if(info==="children"){
+									if(save.props.node.isSpouse){
+										//Add child to parent2
+										let childName=document.getElementById("add").input.value;
+										save.props.node.children.push(new Node(childName, save.props.node));
+									}else{
+										//Add child to ancestor parent
+										tree.addChild(document.getElementById("add").input.value, save.props.node.name);
+									}
+								}else if(info==="spouse"){
+									//Add spouse
+									tree.addSpouse(save.props.node.name,document.getElementById("add").input.value);
+								}
+								save.setState({["add"+info]: false});
+							}}/>
+							<input type="button" value="Cancel" onClick={function(){
+								save.setState({["add"+info]: false});
+							}}/><br/>
+						</form>
+					);
+				//Add button without Input
+				}else{
+					add=(
+						<input type="button" value="Add" onClick={function(){
+							save.setState({["add"+info]: true});
+							ReactDOM.render(<Edit node={save.props.node}/>,document.getElementById("tree"));
+						}}/>
+					);
+				}
+				//Prints results
+				return (
+					<div>
+						{add}
+						<input type="button" value="Finish" onClick={function(){
+							save.setState({[info]: false});
+						}}/>
+						{list}<br/>						
+					
+					</div>
+				);
+			//Default: lists out attributes
+			}else{
+				let people="None";{
+					if(this.props.node[info].length!==0){
+						people=this.props.node[info][0].name;
+						for(let i=1;i<this.props.node[info].length;i++){
+							people+=", "+this.props.node[info][i].name;
+						}
+					}
+				}
+				//List out children
+				if(info==="children"){
+					return(
+						<div onClick={this.toggleState("children")}>
+							Children: {people}
+						</div>
+					);
+				//List out spouse(s)
+				}else if(info==="spouse"){
+					return(
+						<div onClick={this.toggleState("spouse")}>
+							Spouse: {people}
+						</div>
+					);
+				}
+			}
+		}
+		/**
+		 * Toggles the editing state of the variable.
+		 */
+		toggleState(info){
+			let save=this;
+			return function(){
+				save.setState({[info]: !save.state[info]});
+			}
+		}
+		
+		/**
+		 * Reloads the tree by opening the top-most Ancestor's tree.
+		 */ 
+		reload(){
+			ReactDOM.render(tree.currentRoot.GenerateComponent(),document.getElementById("tree"));
+		}
+
+		/**
+		 * Opens the family tree on the spouse's side.
+		 */ 
+		openSpouseTree(){
+			if(this.props.node.isSpouse){
+				let baseNode=this.props.node;
+				let methods=this;
+				return(
+					<input type="button" value="Open Spouse's Tree" onClick={function(){
+						baseNode.isSpouse=false;
+						//Toggling between main and spouse node
+						if(tree.main){
+							let root=tree.find("["+baseNode.name+"\'s Ancestor]");
+							if(root===null){
+								let node=tree.addRoot(baseNode.name);
+								//Procedure for first-time root
+								baseNode.parent=node;
+								node.children.push(baseNode);
+								tree.currentRoot=node;
+							}else{
+								tree.currentRoot=root;
+							}
+							tree.main=false;
+						}else{
+							tree.main=true;
+							tree.currentRoot=tree.roots[0];
+						}
+						for(let i=0;i<baseNode.spouse.length;i++){
+							baseNode.spouse[i].isSpouse=true;
+						}
+						methods.reload();
+					}}/>
+				);
+			}
+		}
+
+		/**
+		 * Builds the individial person's page in HTML.
+		 */ 
+		render(){
+			if(this.props.node.name.includes("Ancestor]")){
+				return(
+					<section>
+						<h2>
+							Edit: {this.props.node.name}
+							<button type="button" onClick={this.reload}>Back</button>	
+						</h2>
+						{this.editArray("children")}
+					</section>
+				);
+			}
+			return(
+				<section>
+					<h1>WARNING: EDITS WILL NOT SAVE AUTOMATICALLY. DATA FILE <u>MUST</u> BE DOWNLOADED TO BE USED!</h1>
+					<h2>
+						Edit: {this.props.node.name} 
+						<button type="button" onClick={this.reload}>Back</button>
+					</h2>
+					<u>{this.edit("name")}</u><br/>
+					{this.edit("profilePic")}
+					{this.edit("birthyear")}
+					{this.edit("deathyear")}
+					Ancestral Parent (Cannot be changed): {this.props.node.parent!=null ? this.props.node.parent.name : ""}
+					{this.edit("parent2")}
+					{this.editArray("spouse")}
+					{this.editArray("children")}
+					{this.openSpouseTree()}
+				</section>
+			);
+		}
+	}
+//  Tree Data Structure //
+    function Tree(){
+    	this.roots=new Array();
+		this.N=0;
+		this.main=true;
+		this.currentRoot=this.addRoot("Main");
+    }
+	Tree.prototype.addRoot = function(name){
+		let string="["+name+"\'s Ancestor]";
+		if(this.N==0){
+			string="["+name+" Ancestor]";
+		}
+		let node=new Node(string,null);
+		this.roots.push(node);
+		this.N++;
+		return node;
+	}
+
+    Tree.prototype.addChild = function(childName, parentName){
+    	let parentNode=this.find(parentName);
+    	if(parentNode!==null){
+			let child=this.find(childName);
+			//Existing Node handling: child's ancestor parent gets changed
+			if(child!==null&&child.parent!==null){
+				child.parent.children=child.parent.children.filter(data => data.name!==childName);
+    			child.parent=parentNode;
+			//Doesn't exist
+			}else{
+				child=new Node(childName,parentNode);
+			}
+			//Parent stuff here
+    		if(parentNode.spouse.length!=0){
+    			child.parent2=parentNode.spouse[0].name;
+				parentNode.spouse[0].children.push(child);
+    		}
+    		parentNode.children.push(child);
+			return true;
+    	}
+		return false;
+    }
+	Tree.prototype.addParent = function(childName, parentName){
+		let childNode=this.find(childName);
+		if(childNode!==null&&childNode.parent.name.includes("Ancestor]")){
+			this.addChild(parentName,childNode.parent.name);
+			this.addChild(childName,parentName);
+			return true;
+		}
+		return false;
+	}
+	Tree.prototype.addSpouse = function(name,spouseName){
+		let node=this.find(name);
+		if(node!==null){
+			let spouseAncestorNode=this.addRoot(spouseName);
+			tree.addChild(spouseName,"["+spouseName+"\'s Ancestor]");
+			let spouseNode=tree.findRecurse(spouseName,spouseAncestorNode);
+			spouseNode.isSpouse=true;
+			spouseNode.children=[...node.children];
+			node.spouse.push(spouseNode);
+			spouseNode.spouse.push(node);
+			return true;
+		}
+		return false;
+	}
+    Tree.prototype.remove = function(name){
+    	let node=this.find(name);
+    	if(node.parent.spouse.length!=0){
+    		for(let i=0;i<node.parent.spouse.length;i++){
+    			node.parent.spouse[i].children=node.parent.spouse[i].children.filter(data => data.name!==name);
+    		}
+    	}
+    	node.parent.children=node.parent.children.filter(data => data.name!==name);
+    }
+    Tree.prototype.findRecurse = function(name, parentNode){
+    	if(parentNode.name===name){
+    		return parentNode;
+    	}
+    	for(let i=0;i<parentNode.children.length;i++){
+    		let n=this.findRecurse(name,parentNode.children[i]);
+    		if(n!==null){
+    			return n;
+    		}
+    	}return null;
+    }
+    Tree.prototype.find = function(name){
+		let node=null;
+		for(let i=0;i<this.N&&node===null;i++){
+			node=this.findRecurse(name,this.roots[i]);
+		}
+    	return node
+    }
+	
+	var tree=new Tree("[Main Ancestor]");
+	function newTree(){
+		tree=new Tree("[Main Ancestor]");
+		document.getElementById("load").value="";
+		ReactDOM.render(tree.find("[Main Ancestor]").GenerateComponent(),document.getElementById("tree"));
+	}
+//Loading the data.txt file
+	function loadFile(){
+		//Read file
+		tree=new Tree("[Main Ancestor]");
+		let reader=new FileReader(event);
+		let text="default";
+		reader.onload = function() {
+			text=reader.result;
+			//Load Tree
+			loadData(text);
+			ReactDOM.render(tree.find("[Main Ancestor]").GenerateComponent(),document.getElementById("tree"));
+		}
+		reader.readAsText(event.target.files[0]);
+		document.getElementById("new").value="Reset";
+	}
+	function loadData(text){
+		let lines=text.split("\r\n");
+		let i=8;
+		while(i<lines.length){
+			let name=lines[i];
+			let parent=lines[++i].substring(8,lines[i].length);
+			let node;
+			if(parent===""){
+				node=new Node(name,null);
+			}else{
+				tree.addChild(name,parent);
+				node=tree.find(name);
+			}
+			node.parent2=lines[++i].substring(9,lines[i].length);
+			node.birthyear=lines[++i].substring(11,lines[i].length);
+			node.deathyear=lines[++i].substring(11,lines[i].length);
+			node.profilePic=lines[++i].substring(17,lines[i].length);
+			if(lines[++i].charAt(9)!==""){
+				let fix=lines[i].substring(8,lines[i].length).split(" ");
+				for(let i=0;i<fix.length-1;i++){
+					let spouseNode=tree.find(fix[i]);
+					if(spouseNode==null){
+						tree.addSpouse(node.name,fix[i]);
+					}
+				}
+			}
+			i+=2;
+		}
+	}
+//Downloads a save data.txt file
+	function saveFile(){
+		let text="";
+		text=writeSaveText(tree.find("[Main Ancestor]"),text);
+
+		let a = document.getElementById('save');
+		let mime_type = "text/plain" || 'application/octet-stream'; // text/html, image/png, et c
+		a.setAttribute('download', "data.txt");
+		a.href = 'data:'+ mime_type +';base64,'+ btoa(text || '');
+	}
+	function writeSaveText(node,string){
+		if(!node.name.includes("Ancestor]")){
+			string+="\r\n\r\n";
+		}
+		string+=node.name;
+		string+="\r\nParent: ";
+		try{
+			string+=node.parent.name
+		}catch(e){}
+		string+="\r\nParent2: "+node.parent2
+		string+="\r\nYear Born: "+node.birthyear
+				+"\r\nYear Died: "+node.deathyear
+				+"\r\nProfile Picture: "+node.profilePic
+				+"\r\nSpouse: ";
+		if(node.spouse.length>0){
+			for(let i=0;i<node.spouse.length;i++){
+				string+=node.spouse[i].name+" ";
+			}
+		}
+		if(!node.isSpouse){
+			for(let i=0;i<node.spouse.length;i++){
+				string=writeSaveText(node.spouse[i],string);
+			}
+			for(let i=0;i<node.children.length;i++){
+				string=writeSaveText(node.children[i],string);
+			}
+		}
+		return string;
+	}
+	
+</script>
+
+<style>
+	header{
+		display: flex;
+		flex-direction: row;
+		justify-content: space-around;
+	}
+	h1{
+		text-align: center;
+	}
+	body{
+		text-align: center;
+	}
+	.node{
+		text-align: center;
+	}
+	.node:hover{
+		border-style: solid;
+	}
+	.spouse{
+		display: flex; 
+		justify-content: center;
+	}
+	#save{
+		color: blue;
+	}
+	#tree{
+		white-space: pre-wrap;
+	}
+	#new{
+		margin-right: 100px;
+	}
+	#childs{
+		white-space: pre-wrap;
+		display: flex;
+	}
+</style>
+
+<head>
+	<meta charset="ISO-8859-1">
+	<title>Family Tree</title>
+</head>
+<header>
+	<input id="new" type="button" value="New Tree" onClick="newTree()">
+	<div>
+		<strong>Load Data (data.txt):</strong></strong></u>
+		<input id="load" type='file' onchange='loadFile()'>
+	</div>
+	<a id="save" onClick="saveFile()"><u>Download updated data.txt file</u></a>
+</header>
+<h1>Family Tree</h1>
+<body>
+	<div id="tree">
+		
+	</div>
+</body>
+</html>
